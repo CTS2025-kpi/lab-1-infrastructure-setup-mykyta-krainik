@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  IAM Identity Center configuration:
+  - PermissionSet "ViewOnly" (ReadOnlyAccess)
+  - Group "Viewers"
+  - Assignment of group to the Dev account in the Dev OU.
+
+Parameters:
+  IdentityStoreId:
+    Type: String
+    Description: The Identity Store ID of your IAM Identity Center instance (find via AWS SSO console → Settings).
+
+  AccountId:
+    Type: String
+    Description: The 12-digit AWS account ID of your Dev account within the Organization.
+
+  InstanceArn:
+    Type: String
+    Description: ARN of your IAM Identity Center instance (starts with arn:aws:sso:::instance/).
+
+Resources:
+  ViewOnlyPermissionSet:
+    Type: AWS::SSO::PermissionSet
+    Properties:
+      InstanceArn: !Ref InstanceArn
+      Name: ReadOnlyAccess
+      Description: Read-only access for Viewers group.
+      ManagedPolicies:
+        - arn:aws:iam::aws:policy/ReadOnlyAccess
+      SessionDuration: PT4H
+
+  ViewersGroup:
+    Type: AWS::IdentityStore::Group
+    Properties:
+      IdentityStoreId: !Ref IdentityStoreId
+      DisplayName: Viewers
+      Description: Group of read-only users for Dev environment.
+
+  ViewersGroupAssignment:
+    Type: AWS::SSO::Assignment
+    Properties:
+      InstanceArn: !Ref InstanceArn
+      PermissionSetArn: !GetAtt ViewOnlyPermissionSet.PermissionSetArn
+      PrincipalId: !GetAtt ViewersGroup.GroupId
+      PrincipalType: GROUP
+      TargetId: !Ref AccountId
+      TargetType: AWS_ACCOUNT
+
+Outputs:
+  PermissionSetArn:
+    Value: !GetAtt ViewOnlyPermissionSet.PermissionSetArn
+  ViewersGroupId:
+    Value: !GetAtt ViewersGroup.GroupId
+  Assignment:
+    Value: !Ref ViewersGroupAssignment
